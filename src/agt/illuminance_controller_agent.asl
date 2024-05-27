@@ -40,11 +40,49 @@ task_requirements([2,3]).
 
   // creates a ThingArtifact artifact for reading and acting on the state of the lab Thing
   makeArtifact("lab", "org.hyperagents.jacamo.artifacts.wot.ThingArtifact", [Url], LabArtId);
-  
-  // example use of the getActionFromState operation of the QLearner artifact
-  // relevant for Task 2.3
-  getActionFromState([1,1], [0, 0, false, false, false, false, 3], ActionTag, PayloadTags, Payload);
 
-  // example use of the invokeAction operation of the ThingArtifact 
-  //invokeAction(ActionTag, PayloadTags, Payload)
-  .
+  // calculate table
+  !calculate_qtable(QLArtId, [Z1Level, Z2Level]).
+
+@calculation
++!calculate_qtable(QLArtId, Requirements) <- 
+  calculateQ(Requirements, 1000, 0.1, 0.9, 0.1, 100)[artifact_id(QLArtId)];
+  !achieve_goal.
+
+@achieving
++!achieve_goal <- 
+  .print("Start achieving goal");
+  getCurrentLabState(CurrentState)[artifact_id(LabArtId)];
+  .print("Initial lab state: ", CurrentState);
+  !reach_state(CurrentState, [2, 3]).
+
++!reach_state(CurrentState, Requirements) <- 
+  .print("Current state: ", CurrentState, ", Requirements: ", Requirements);
+  getRelevantElementsFromState(CurrentState, CurrentStateZLevels)[artifact_id(QLArtId)];
+  .print("Current state Z-levels: ", CurrentStateZLevels);
+  !check_state(CurrentState, Requirements, CurrentStateZLevels).
+
++!check_state(CurrentState, Requirements, CurrentStateZLevels) : CurrentStateZLevels == Requirements <- 
+  .print("I have reached my goal: ", Requirements);
+  !stop.
+
++!check_state(CurrentState, Requirements, CurrentStateZLevels) : CurrentStateZLevels \== Requirements <- 
+  .print("Current state doesnt match requirements, still going.");
+  getActionFromState(Requirements, CurrentState, ActionTag, PayloadTags, Payload)[artifact_id(QLArtId)];
+  .print("Action to perform: ", ActionTag, " with payload ", Payload);
+  invokeAction(ActionTag, PayloadTags, Payload)[artifact_id(LabArtId)];
+  .wait(1000);
+  getCurrentLabState(NewState)[artifact_id(LabArtId)];
+  !reach_state(NewState, Requirements).
+
+@setup
++!set_thing(ThingArtifact) <- 
+  +thing(ThingArtifact).
+
+@task_requirements
++task_requirements(Requirements) <- 
+  .print("Handling these task requirements: ", Requirements).
+
+@termination
++!stop <- 
+  .print("GOAL IS REACHED! Agent stopping further actions.").
